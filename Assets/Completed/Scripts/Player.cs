@@ -26,10 +26,13 @@ namespace Completed
 #if UNITY_IOS || UNITY_ANDROID || UNITY_WP8 || UNITY_IPHONE
         private Vector2 touchOrigin = -Vector2.one;	//Used to store location of screen touch origin for mobile controls.
 #endif
-		
-		
-		//Start overrides the Start function of MovingObject
-		protected override void Start ()
+
+        private float setupTimer = 10;
+        private float countdownTimer;
+        [SerializeField] Text timerText;
+
+        //Start overrides the Start function of MovingObject
+        protected override void Start ()
 		{
 			//Get a component reference to the Player's animator component
 			animator = GetComponent<Animator>();
@@ -38,11 +41,14 @@ namespace Completed
 			food = GameManager.instance.playerFoodPoints;
 			
 			//Set the foodText to reflect the current player food total.
-			foodText.text = "Food: " + food;
+			foodText.text = "Food:" + food;
 			
 			//Call the Start function of the MovingObject base class.
 			base.Start ();
-		}
+
+            //(Re)set timer
+            countdownTimer = setupTimer;
+        }
 		
 		
 		//This function is called when the behaviour becomes disabled or inactive.
@@ -53,10 +59,20 @@ namespace Completed
 		}
 		
 		
-		private void Update ()
+		private void FixedUpdate ()
 		{
 			//If it's not the player's turn, exit the function.
 			if(!GameManager.instance.playersTurn) return;
+
+            countdownTimer -= Time.deltaTime;
+            //Debug.Log("countdownTimer: " + countdownTimer);
+            timerText.text = "Time:" + countdownTimer.ToString("F1");
+
+            if (countdownTimer <= 0)
+            {
+                PlayerDidntMove();
+                return;
+            }
 			
 			int horizontal = 0;  	//Used to store the horizontal move direction.
 			int vertical = 0;		//Used to store the vertical move direction.
@@ -124,17 +140,20 @@ namespace Completed
 				//Pass in horizontal and vertical as parameters to specify the direction to move Player in.
 				AttemptMove<Wall> (horizontal, vertical);
 			}
-		}
+        }
 		
 		//AttemptMove overrides the AttemptMove function in the base class MovingObject
 		//AttemptMove takes a generic parameter T which for Player will be of the type Wall, it also takes integers for x and y direction to move in.
 		protected override void AttemptMove <T> (int xDir, int yDir)
 		{
-			//Every time player moves, subtract from food points total.
-			food--;
+            //(Re)set timer
+            countdownTimer = setupTimer;
+
+            //Every time player moves, subtract from food points total.
+            food--;
 			
 			//Update food text display to reflect current score.
-			foodText.text = "Food: " + food;
+			foodText.text = "Food:" + food;
 			
 			//Call the AttemptMove method of the base class, passing in the component T (in this case Wall) and x and y direction to move.
 			base.AttemptMove <T> (xDir, yDir);
@@ -169,7 +188,48 @@ namespace Completed
 			
 			//Set the attack trigger of the player's animation controller in order to play the player's attack animation.
 			animator.SetTrigger ("playerChop");
+
+            Debug.Log("Test");
 		}
+
+        // PlayerDidntMove is called when it is the player's turn and he hasn't moved yet.
+        void PlayerDidntMove()
+        {
+            food -= pointsPerFood;
+
+            //Update food text display to reflect current score.
+            foodText.text = "Food:" + food;
+
+            //Since the player has moved and lost food points, check if the game has ended.
+            CheckIfGameOver();
+
+            //Set the playersTurn boolean of GameManager to false now that players turn is over.
+            GameManager.instance.playersTurn = false;
+
+            //Resets the timer
+            int i = GameManager.instance.getLevel;
+            switch (i)
+            {
+                case 1:
+                    setupTimer = 10;
+                    break;
+                case 5:
+                    setupTimer = 7;
+                    break;
+                case 10:
+                    setupTimer = 4;
+                    break;
+                case 15:
+                    setupTimer = 1;
+                    break;
+                default:
+                    //Do Nothing
+                    break;
+            }
+            countdownTimer = setupTimer;
+        }
+
+
 		
 		
 		//OnTriggerEnter2D is sent when another object enters a trigger collider attached to this object (2D physics only).
@@ -192,7 +252,7 @@ namespace Completed
 				food += pointsPerFood;
 				
 				//Update foodText to represent current total and notify player that they gained points
-				foodText.text = "+" + pointsPerFood + " Food: " + food;
+				foodText.text = "+" + pointsPerFood + " Food:" + food;
 				
 				//Call the RandomizeSfx function of SoundManager and pass in two eating sounds to choose between to play the eating sound effect.
 				SoundManager.instance.RandomizeSfx (eatSound1, eatSound2);
@@ -208,7 +268,7 @@ namespace Completed
 				food += pointsPerSoda;
 				
 				//Update foodText to represent current total and notify player that they gained points
-				foodText.text = "+" + pointsPerSoda + " Food: " + food;
+				foodText.text = "+" + pointsPerSoda + " Food:" + food;
 				
 				//Call the RandomizeSfx function of SoundManager and pass in two drinking sounds to choose between to play the drinking sound effect.
 				SoundManager.instance.RandomizeSfx (drinkSound1, drinkSound2);
@@ -239,7 +299,7 @@ namespace Completed
 			food -= loss;
 			
 			//Update the food display with the new total.
-			foodText.text = "-"+ loss + " Food: " + food;
+			foodText.text = "-"+ loss + " Food:" + food;
 			
 			//Check to see if game has ended.
 			CheckIfGameOver ();
