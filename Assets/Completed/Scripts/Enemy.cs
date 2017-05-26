@@ -8,14 +8,15 @@ namespace Completed
 	{
 		public int playerDamage; 							//The amount of food points to subtract from the player when attacking.
 		public AudioClip attackSound1;						//First of two audio clips to play when attacking the player.
-		public AudioClip attackSound2;						//Second of two audio clips to play when attacking the player.
-		
+		public AudioClip attackSound2;						//Second of two audio clips to play when attacking the player.		
 		
 		private Animator animator;							//Variable of type Animator to store a reference to the enemy's Animator component.
 		private Transform target;							//Transform to attempt to move toward each turn.
-		private bool skipMove;								//Boolean to determine whether or not enemy should skip a turn or move this turn.
+		//private bool skipMove;								//Boolean to determine whether or not enemy should skip a turn or move this turn.
+        private int _turnsTillMove;
 
-        public int health = 2;
+        public int health = 3;
+        public int id;
 		
 		
 		//Start overrides the virtual Start function of the base class.
@@ -40,20 +41,16 @@ namespace Completed
 		//See comments in MovingObject for more on how base AttemptMove function works.
 		protected override void AttemptMove <T> (int xDir, int yDir)
 		{
-			//Check if skipMove is true, if so set it to false and skip this turn.
-			if(skipMove)
-			{
-				skipMove = false;
-				return;
-				
-			}
-			
-			//Call the AttemptMove function from MovingObject.
-			base.AttemptMove <T> (xDir, yDir);
-			
-			//Now that Enemy has moved, set skipMove to true to skip next move.
-			skipMove = true;
-		}
+            if(_turnsTillMove == 0)
+            {
+                base.AttemptMove<T>(xDir, yDir);
+                _turnsTillMove++;
+            }
+            else
+            {
+                _turnsTillMove--;
+            }
+        }
 		
 		
 		//MoveEnemy is called by the GameManger each turn to tell each Enemy to try to move towards the player.
@@ -84,8 +81,8 @@ namespace Completed
 		//and takes a generic parameter T which we use to pass in the component we expect to encounter, in this case Player
 		protected override void OnCantMove <T> (T component)
 		{
-			//Declare hitPlayer and set it to equal the encountered component.
-			Player hitPlayer = component as Player;
+            //Declare hitPlayer and set it to equal the encountered component.
+            Player hitPlayer = component as Player;
 			
 			//Call the LoseFood function of hitPlayer passing it playerDamage, the amount of foodpoints to be subtracted.
 			hitPlayer.LoseFood (playerDamage);
@@ -96,5 +93,56 @@ namespace Completed
 			//Call the RandomizeSfx function of SoundManager passing in the two audio clips to choose randomly between.
 			SoundManager.instance.RandomizeSfx (attackSound1, attackSound2);
 		}
-	}
+
+        private void OnTriggerEnter2D(Collider2D other)
+        {
+            if(other.tag == "Trap")
+            {
+                //Debug.Log("Trap Activated");
+                _turnsTillMove += 1;
+                health--;
+
+                //GameObject x = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
+                //x.GetComponent<LoseHealthFx>().SetText(1);
+
+                if (health <= 0)
+                {
+                    GameManager.instance.RemoveEnemyFromList(this);
+                    Destroy(this.gameObject);
+                }
+
+                //Destroy trap
+                Destroy(other.gameObject);
+
+                //Do animations and stuff
+                Instantiate(GameManager.instance.blood, transform.position, transform.rotation);
+            }
+        }
+
+
+        /// <summary>
+        /// Makes the enemy take damage, if the enemy's health reaches 0 it will die and be removed from the list of active enemies.
+        /// </summary>
+        public void TakeDamage()
+        {
+            int damage = target.GetComponent<Player>().DamageCalculatorAgainstZombies();
+            health -= damage;
+
+            //GameObject x = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
+            //x.GetComponent<LoseHealthFx>().SetText(damage);
+            //Debug.Log("Enemy Took Damage: " + damage);
+            //Debug.Log("Current Health: " + health);
+
+            if (health <= 0)
+            {
+                GameManager.instance.RemoveEnemyFromList(this);
+                Destroy(this.gameObject);
+            }
+        }
+
+        protected override void AttackEnemy<T>(T component)
+        {
+            TakeDamage();
+        }
+    }
 }

@@ -112,12 +112,30 @@ namespace Completed
 				
 				//Call the OnCantMove function and pass it hitComponent as a parameter.
 				OnCantMove (hitComponent);
-		}
+
+            if(hit.collider.tag == "Enemy")
+            {
+                hit.collider.gameObject.GetComponent<Enemy>().TakeDamage();
+                AttackEnemy(hitComponent);
+
+                ////Because the shotgun is a ranged weapon, the player is unable to also walk in the same turn as he shoots.
+                //if (hitComponent.gameObject.GetComponent<Player>().activeWeapon.name == "Shotgun")
+                //{
+                //    OnCantMove(hitComponent);
+                //}
+            }
+        }
 		
 		
 		//The abstract modifier indicates that the thing being modified has a missing or incomplete implementation.
 		//OnCantMove will be overriden by functions in the inheriting classes.
 		protected abstract void OnCantMove <T> (T component)
 			where T : Component;
+
+        //Called when the player attacks an enemy.
+        protected abstract void AttackEnemy<T>(T component)
+                    where T : Component;
 	}
+
+    
 }

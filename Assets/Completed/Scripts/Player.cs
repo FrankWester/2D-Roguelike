@@ -11,8 +11,7 @@ namespace Completed
 		public float restartLevelDelay = 1f;		//Delay time in seconds to restart level.
 		public int pointsPerFood = 10;				//Number of points to add to player food points when picking up a food object.
 		public int pointsPerSoda = 20;				//Number of points to add to player food points when picking up a soda object.
-		public int wallDamage = 1;					//How much damage a player does to a wall when chopping it.
-		public Text foodText;						//UI Text to display current player food total.
+		public int baseDamage = 1;					//How much damage a player does to a wall when chopping it.
 		public AudioClip moveSound1;				//1 of 2 Audio clips to play when player moves.
 		public AudioClip moveSound2;				//2 of 2 Audio clips to play when player moves.
 		public AudioClip eatSound1;					//1 of 2 Audio clips to play when player collects a food object.
@@ -27,27 +26,40 @@ namespace Completed
         private Vector2 touchOrigin = -Vector2.one;	//Used to store location of screen touch origin for mobile controls.
 #endif
 
-        private float setupTimer = 10;
-        private float countdownTimer;
+        UiController _uiController;
+        float setupTimer = 7;
+        float countdownTimer;
         [SerializeField] Text timerText;
+        [SerializeField] int playerAttackHealthPenalty = 5;
+
+        Weapon _activeWeapon;
+        public Weapon activeWeapon { get { return _activeWeapon; } }
+        int trapsInInventory = 0;
+        public int stepInTrapPenalty = 30;
 
         //Start overrides the Start function of MovingObject
         protected override void Start ()
 		{
 			//Get a component reference to the Player's animator component
 			animator = GetComponent<Animator>();
-			
-			//Get the current food point total stored in GameManager.instance between levels.
-			food = GameManager.instance.playerFoodPoints;
-			
-			//Set the foodText to reflect the current player food total.
-			foodText.text = "Food:" + food;
+
+            //Get UI Controller
+            _uiController = FindObjectOfType<UiController>();
+
+            //Get the current food point total stored in GameManager.instance between levels.
+            food = GameManager.instance.playerFoodPoints;
+
+            //Get the current weapon stored in GameManager.instance between levels.
+            _activeWeapon = GameManager.instance.playerWeapon;
+
+            //Set the foodText to reflect the current player food total.
+            _uiController.SetFoodText(food);
 			
 			//Call the Start function of the MovingObject base class.
 			base.Start ();
 
             //(Re)set timer
-            countdownTimer = setupTimer;
+            countdownTimer = setupTimer + 2; //The +2 is compensation for the black screen in the beginning.
         }
 		
 		
@@ -56,17 +68,20 @@ namespace Completed
 		{
 			//When Player object is disabled, store the current local food total in the GameManager so it can be re-loaded in next level.
 			GameManager.instance.playerFoodPoints = food;
-		}
-		
-		
-		private void FixedUpdate ()
+            GameManager.instance.playerWeapon = _activeWeapon;
+        }
+
+
+        private void FixedUpdate ()
 		{
 			//If it's not the player's turn, exit the function.
 			if(!GameManager.instance.playersTurn) return;
 
+            //Count down
             countdownTimer -= Time.deltaTime;
-            //Debug.Log("countdownTimer: " + countdownTimer);
-            timerText.text = "Time:" + countdownTimer.ToString("F1");
+
+            _uiController.SetTimerText(countdownTimer, setupTimer);
+
 
             if (countdownTimer <= 0)
             {
@@ -140,6 +155,18 @@ namespace Completed
 				//Pass in horizontal and vertical as parameters to specify the direction to move Player in.
 				AttemptMove<Wall> (horizontal, vertical);
 			}
+
+            if (Input.GetKeyDown("space") && trapsInInventory > 0)
+            {
+                //Place trap
+                Instantiate(GameManager.instance.trap,transform.position, transform.rotation);
+
+                //Take one from the inventory
+                trapsInInventory--;
+
+                _uiController.SetTrapsLeft(trapsInInventory);
+                Debug.Log("Traps Left: " + trapsInInventory);
+            }
         }
 		
 		//AttemptMove overrides the AttemptMove function in the base class MovingObject
@@ -153,10 +180,10 @@ namespace Completed
             food--;
 			
 			//Update food text display to reflect current score.
-			foodText.text = "Food:" + food;
-			
-			//Call the AttemptMove method of the base class, passing in the component T (in this case Wall) and x and y direction to move.
-			base.AttemptMove <T> (xDir, yDir);
+            _uiController.SetFoodText(food);
+
+            //Call the AttemptMove method of the base class, passing in the component T (in this case Wall) and x and y direction to move.
+            base.AttemptMove <T> (xDir, yDir);
 			
 			//Hit allows us to reference the result of the Linecast done in Move.
 			RaycastHit2D hit;
@@ -173,7 +200,7 @@ namespace Completed
 			
 			//Set the playersTurn boolean of GameManager to false now that players turn is over.
 			GameManager.instance.playersTurn = false;
-		}
+        }
 		
 		
 		//OnCantMove overrides the abstract function OnCantMove in MovingObject.
@@ -184,13 +211,52 @@ namespace Completed
 			Wall hitWall = component as Wall;
 			
 			//Call the DamageWall function of the Wall we are hitting.
-			hitWall.DamageWall (wallDamage);
-			
-			//Set the attack trigger of the player's animation controller in order to play the player's attack animation.
-			animator.SetTrigger ("playerChop");
+            if(_activeWeapon != null)
+            {
+                hitWall.DamageWall(baseDamage + _activeWeapon.wallDamage);
+                PlayerUsesWeapon();
+            }
+            else
+            {
+                hitWall.DamageWall(baseDamage);
+            }
 
-            Debug.Log("Test");
+            //Set the attack trigger of the player's animation controller in order to play the player's attack animation.
+            animator.SetTrigger ("playerChop");
 		}
+
+        /// <summary>
+        /// Called when the player attacks a zombie, it retracts health based on the current weapon the player is wielding. Also retracts one durability from the weapon.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="component"></param>
+        protected override void AttackEnemy <T> (T component)
+        {
+            int x = playerAttackHealthPenalty;
+            LoseFood(x);
+
+            GameObject loseHealthFx = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
+            loseHealthFx.GetComponent<LoseHealthFx>().SetText(x);
+
+            if (_activeWeapon != null)
+            {
+                PlayerUsesWeapon();
+            }
+        }
+
+        //Lowers the attacks left and checks if the weapon has any attacks left, if not, the weapon will be destroyed.
+        void PlayerUsesWeapon()
+        {
+            _activeWeapon.PlayerAttacked();
+            _uiController.SetAmmoText(_activeWeapon.AttacksLeft());
+
+
+            if (_activeWeapon.AttacksLeft() == 0)
+            {
+                _activeWeapon = null;
+                _uiController.SetActiveWeapon(" - ");
+            }
+        }
 
         // PlayerDidntMove is called when it is the player's turn and he hasn't moved yet.
         void PlayerDidntMove()
@@ -198,7 +264,7 @@ namespace Completed
             food -= pointsPerFood;
 
             //Update food text display to reflect current score.
-            foodText.text = "Food:" + food;
+            _uiController.SetFoodText(food);
 
             //Since the player has moved and lost food points, check if the game has ended.
             CheckIfGameOver();
@@ -211,13 +277,13 @@ namespace Completed
             switch (i)
             {
                 case 1:
-                    setupTimer = 10;
-                    break;
-                case 5:
                     setupTimer = 7;
                     break;
+                case 5:
+                    setupTimer = 5;
+                    break;
                 case 10:
-                    setupTimer = 4;
+                    setupTimer = 3;
                     break;
                 case 15:
                     setupTimer = 1;
@@ -228,9 +294,6 @@ namespace Completed
             }
             countdownTimer = setupTimer;
         }
-
-
-		
 		
 		//OnTriggerEnter2D is sent when another object enters a trigger collider attached to this object (2D physics only).
 		private void OnTriggerEnter2D (Collider2D other)
@@ -250,12 +313,12 @@ namespace Completed
 			{
 				//Add pointsPerFood to the players current food total.
 				food += pointsPerFood;
-				
-				//Update foodText to represent current total and notify player that they gained points
-				foodText.text = "+" + pointsPerFood + " Food:" + food;
-				
-				//Call the RandomizeSfx function of SoundManager and pass in two eating sounds to choose between to play the eating sound effect.
-				SoundManager.instance.RandomizeSfx (eatSound1, eatSound2);
+
+                //Update foodText to represent current total and notify player that they gained points
+                _uiController.SetFoodText(food);
+
+                //Call the RandomizeSfx function of SoundManager and pass in two eating sounds to choose between to play the eating sound effect.
+                SoundManager.instance.RandomizeSfx (eatSound1, eatSound2);
 				
 				//Disable the food object the player collided with.
 				other.gameObject.SetActive (false);
@@ -266,21 +329,35 @@ namespace Completed
 			{
 				//Add pointsPerSoda to players food points total
 				food += pointsPerSoda;
-				
-				//Update foodText to represent current total and notify player that they gained points
-				foodText.text = "+" + pointsPerSoda + " Food:" + food;
-				
-				//Call the RandomizeSfx function of SoundManager and pass in two drinking sounds to choose between to play the drinking sound effect.
-				SoundManager.instance.RandomizeSfx (drinkSound1, drinkSound2);
+
+                //Update foodText to represent current total and notify player that they gained points
+                _uiController.SetFoodText(food);
+
+                //Call the RandomizeSfx function of SoundManager and pass in two drinking sounds to choose between to play the drinking sound effect.
+                SoundManager.instance.RandomizeSfx (drinkSound1, drinkSound2);
 				
 				//Disable the soda object the player collided with.
 				other.gameObject.SetActive (false);
 			}
-		}
-		
-		
-		//Restart reloads the scene when called.
-		private void Restart ()
+
+            else if (other.tag == "Trap")
+            {
+                LoseFood(stepInTrapPenalty);
+                GameObject loseHealthFx = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
+                loseHealthFx.GetComponent<LoseHealthFx>().SetText(stepInTrapPenalty);
+                Destroy(other.gameObject);
+            }
+
+            else if (other.tag == "WeaponCrate")
+            {
+                GiveRandomWeapon();
+                other.gameObject.SetActive(false);
+            }
+        }
+
+
+        //Restart reloads the scene when called.
+        private void Restart ()
 		{
 			//Load the last scene loaded, in this case Main, the only scene in the game. And we load it in "Single" mode so it replace the existing one
             //and not load all the scene object in the current scene.
@@ -297,17 +374,23 @@ namespace Completed
 			
 			//Subtract lost food points from the players total.
 			food -= loss;
-			
-			//Update the food display with the new total.
-			foodText.text = "-"+ loss + " Food:" + food;
-			
-			//Check to see if game has ended.
-			CheckIfGameOver ();
-		}
-		
-		
-		//CheckIfGameOver checks if the player is out of food points and if so, ends the game.
-		private void CheckIfGameOver ()
+
+            //Update the food display with the new total.
+            _uiController.SetFoodText(food);
+
+            //Check to see if game has ended.
+            CheckIfGameOver();
+
+            //Show blood
+            Instantiate(GameManager.instance.blood, transform.position, transform.rotation);
+
+            GameObject loseHealthFx = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
+            loseHealthFx.GetComponent<LoseHealthFx>().SetText(loss);
+        }
+
+
+        //CheckIfGameOver checks if the player is out of food points and if so, ends the game.
+        private void CheckIfGameOver ()
 		{
 			//Check if food point total is less than or equal to zero.
 			if (food <= 0) 
@@ -322,6 +405,56 @@ namespace Completed
 				GameManager.instance.GameOver ();
 			}
 		}
-	}
+
+        public int DamageCalculatorAgainstZombies()
+        {
+            int damage = 0;
+
+            if(_activeWeapon != null)
+            {
+                damage = _activeWeapon.damage;
+                Debug.Log(_activeWeapon.damage);
+            }
+            else
+            {
+                damage = baseDamage;
+            }
+            return damage;
+        }
+
+        void GiveRandomWeapon()
+        {
+            //Resets the timer
+            int i = Random.Range(0, 3);
+            string weapon = "";
+
+            switch (i)
+            {
+                case 0:
+                    _activeWeapon = new Shotgun();
+                    weapon = "Shotgun";
+                    _uiController.SetActiveWeapon(weapon);
+                    break;
+
+                case 1:
+                    trapsInInventory += 2;
+                    weapon = "Traps";
+                    _uiController.SetTrapsLeft(trapsInInventory);
+                    break;
+
+                case 2:
+                    _activeWeapon = new MeleeWeapon();
+                    weapon = "Melee Weapon";
+                    _uiController.SetActiveWeapon(weapon);
+                    break;
+
+                default:
+                    //Do Nothing
+                    Debug.Log("Something went wrong!");
+                    break;
+            }
+            Debug.Log("New weapon acquired: " + weapon);
+        }
+    }
 }
 

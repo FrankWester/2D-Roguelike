@@ -35,9 +35,14 @@ namespace Completed
 		public GameObject[] wallTiles;									//Array of wall prefabs.
 		public GameObject[] foodTiles;									//Array of food prefabs.
 		public GameObject[] enemyTiles;									//Array of enemy prefabs.
-		public GameObject[] outerWallTiles;								//Array of outer tile prefabs.
-		
-		private Transform boardHolder;									//A variable to store a reference to the transform of our Board object.
+		public GameObject[] outerWallTiles;                             //Array of outer tile prefabs.
+
+
+        //public Count weaponCount = new Count(0, 1);						//Lower and upper limit for our random number of food items per level.
+        public GameObject[] weaponTiles;                             //Array of outer tile prefabs.
+
+
+        private Transform boardHolder;									//A variable to store a reference to the transform of our Board object.
 		private List <Vector3> gridPositions = new List <Vector3> ();	//A list of possible locations to place tiles.
 		
 		
@@ -142,9 +147,12 @@ namespace Completed
 			
 			//Instantiate a random number of food tiles based on minimum and maximum, at randomized positions.
 			LayoutObjectAtRandom (foodTiles, foodCount.minimum, foodCount.maximum);
-			
-			//Determine number of enemies based on current level number, based on a logarithmic progression
-			int enemyCount = (int)Mathf.Log(level, 2f);
+
+            //Spawn weapons
+            WeaponRandomizer();
+
+            //Determine number of enemies based on current level number, based on a logarithmic progression
+            int enemyCount = (int)Mathf.Log(level, 2f);
 			
 			//Instantiate a random number of enemies based on minimum and maximum, at randomized positions.
 			LayoutObjectAtRandom (enemyTiles, enemyCount, enemyCount);
@@ -152,5 +160,17 @@ namespace Completed
 			//Instantiate the exit tile in the upper right hand corner of our game board
 			Instantiate (exit, new Vector3 (columns - 1, rows - 1, 0f), Quaternion.identity);
 		}
-	}
+
+        // There's a 33% chance that a weapon crate will be available in a level.
+        void WeaponRandomizer()
+        {
+            int x = Random.Range(0, 3);
+
+            if (x == 2)
+            {
+                LayoutObjectAtRandom(weaponTiles, 1, 1);
+                Debug.Log("Weapon crate spawned!");
+            }
+        }
+    }
 }
