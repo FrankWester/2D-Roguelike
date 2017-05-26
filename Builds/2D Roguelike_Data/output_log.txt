@@ -1,0 +1,58 @@
+Initialize engine version: 5.6.1f1 (2860b30f0b54)
+GfxDevice: creating device client; threaded=1
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.0]
+    Renderer: NVIDIA GeForce GTX 650 Ti (ID=0x11c6)
+    Vendor:   NVIDIA
+    VRAM:     994 MB
+    Driver:   21.21.13.7653
+Begin MonoManager ReloadAssembly
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.dll (this message is harmless)
+Loading C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.dll into Unity Child Domain
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\Assembly-CSharp.dll (this message is harmless)
+Loading C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\Assembly-CSharp.dll into Unity Child Domain
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.UI.dll (this message is harmless)
+Loading C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.UI.dll into Unity Child Domain
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.Networking.dll (this message is harmless)
+Loading C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\UnityEngine.Networking.dll into Unity Child Domain
+- Completed reload, in  0.268 seconds
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\System.Core.dll (this message is harmless)
+Platform assembly: C:\Users\Public\Documents\Unity Projects\2D Roguelike 2.0\Builds\2D Roguelike_Data\Managed\System.dll (this message is harmless)
+desktop: 1920x1080 60Hz; virtual: 1920x1080 at 0,0
+<RI> Initializing input.
+<RI> Input initialized.
+<RI> Initialized touch support.
+UnloadTime: 1.146743 ms
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 6.393139 ms
+Weapon crate spawned!
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/DebugBindings.gen.cpp Line: 51)
+
+
+Unloading 5 unused Assets to reduce memory usage. Loaded Objects now: 1425.
+Total: 0.652900 ms (FindLiveObjects: 0.156522 ms CreateObjectMapping: 0.042029 ms MarkObjects: 0.436233 ms  DeleteObjects: 0.017391 ms)
+
+New weapon acquired: Melee Weapon
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/DebugBindings.gen.cpp Line: 51)
+
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 1.056525 ms
+Weapon crate spawned!
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/DebugBindings.gen.cpp Line: 51)
+
+
+Unloading 1 unused Assets to reduce memory usage. Loaded Objects now: 1072.
+Total: 0.546378 ms (FindLiveObjects: 0.068840 ms CreateObjectMapping: 0.055797 ms MarkObjects: 0.415218 ms  DeleteObjects: 0.005797 ms)
+
+Unloading 3 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 0.785147 ms
+
+Unloading 1 unused Assets to reduce memory usage. Loaded Objects now: 1151.
+Total: 0.632973 ms (FindLiveObjects: 0.109420 ms CreateObjectMapping: 0.063043 ms MarkObjects: 0.454711 ms  DeleteObjects: 0.005072 ms)
+
+Setting up 2 worker threads for Enlighten.
+  Thread -> id: 297c -> priority: 1 
+  Thread -> id: 77c -> priority: 1 
