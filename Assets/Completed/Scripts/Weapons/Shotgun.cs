@@ -8,10 +8,10 @@ public class Shotgun : Weapon
     string _name = "Shotgun";
     public override string name { get { return _name; } }
 
-    int _attacksLeft = 6;
+    int _attacksLeft = 2;
     public override int attacksLeft { get { return _attacksLeft; } }
 
-    int _totalAttacks = 6;
+    int _totalAttacks = 2;
     public override int totalAttacks { get { return _totalAttacks; } }
 
     int _damage = 3;

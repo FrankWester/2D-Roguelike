@@ -27,15 +27,24 @@ namespace Completed
 #endif
 
         UiController _uiController;
-        float setupTimer = 7;
+        AnalyticsController analyticsController;
+        float setupTimer;
         float countdownTimer;
         [SerializeField] Text timerText;
         [SerializeField] int playerAttackHealthPenalty = 5;
 
+        //Weapons and traps
         Weapon _activeWeapon;
+        Trap trapScript;
+
         public Weapon activeWeapon { get { return _activeWeapon; } }
-        int trapsInInventory = 0;
         public int stepInTrapPenalty = 30;
+        [SerializeField] GameObject trapPlacedThisTurn; //Will be null if there was no trap placed durin that turn. This is used to enable the boxcolider so it doesn't go off when the player places it.
+        int trapsInInventory = 0;
+        bool aTrapWasPlaced;
+        bool aTrapIsPlacedThisTurn;
+
+        bool _playerFinished = false;
 
         //Start overrides the Start function of MovingObject
         protected override void Start ()
@@ -44,13 +53,18 @@ namespace Completed
 			animator = GetComponent<Animator>();
 
             //Get UI Controller
-            _uiController = FindObjectOfType<UiController>();
+            //_uiController = FindObjectOfType<UiController>();
+            //if (_uiController == null)
+                _uiController = GameManager.instance.uiController;
 
-            //Get the current food point total stored in GameManager.instance between levels.
-            food = GameManager.instance.playerFoodPoints;
+           //Get the current food point total stored in GameManager.instance between levels.
+           food = GameManager.instance.playerFoodPoints;
 
             //Get the current weapon stored in GameManager.instance between levels.
             _activeWeapon = GameManager.instance.playerWeapon;
+
+            //Get the current trap amount stored in GameManager.instance between levels.
+            trapsInInventory = GameManager.instance.playerTrapsInInventoryAmount;
 
             //Set the foodText to reflect the current player food total.
             _uiController.SetFoodText(food);
@@ -60,15 +74,19 @@ namespace Completed
 
             //(Re)set timer
             countdownTimer = setupTimer + 2; //The +2 is compensation for the black screen in the beginning.
+
+            //Get AnalyticsController
+            analyticsController = GameManager.instance.GetComponent<AnalyticsController>();
         }
-		
-		
-		//This function is called when the behaviour becomes disabled or inactive.
-		private void OnDisable ()
+
+
+        //This function is called when the behaviour becomes disabled or inactive.
+        private void OnDisable ()
 		{
 			//When Player object is disabled, store the current local food total in the GameManager so it can be re-loaded in next level.
 			GameManager.instance.playerFoodPoints = food;
             GameManager.instance.playerWeapon = _activeWeapon;
+            GameManager.instance.playerTrapsInInventoryAmount = trapsInInventory;
         }
 
 
@@ -77,16 +95,18 @@ namespace Completed
 			//If it's not the player's turn, exit the function.
 			if(!GameManager.instance.playersTurn) return;
 
-            //Count down
-            countdownTimer -= Time.deltaTime;
-
-            _uiController.SetTimerText(countdownTimer, setupTimer);
-
-
-            if (countdownTimer <= 0)
+            if(_playerFinished == false)
             {
-                PlayerDidntMove();
-                return;
+                //Count down
+                countdownTimer -= Time.deltaTime;
+
+                _uiController.SetTimerText(countdownTimer, setupTimer);
+
+                if (countdownTimer <= 0)
+                {
+                    PlayerDidntMove();
+                    return;
+                }
             }
 			
 			int horizontal = 0;  	//Used to store the horizontal move direction.
@@ -154,18 +174,37 @@ namespace Completed
 				//Call AttemptMove passing in the generic parameter Wall, since that is what Player may interact with if they encounter one (by attacking it)
 				//Pass in horizontal and vertical as parameters to specify the direction to move Player in.
 				AttemptMove<Wall> (horizontal, vertical);
-			}
+            }
+            if (Input.GetKeyDown("space"))
+            {
+                Debug.Log("trapsInInventory: " + trapsInInventory);
 
+            }
             if (Input.GetKeyDown("space") && trapsInInventory > 0)
             {
-                //Place trap
-                Instantiate(GameManager.instance.trap,transform.position, transform.rotation);
+                //Place and set trap
+                trapPlacedThisTurn = Instantiate(GameManager.instance.trap,transform.position, transform.rotation);
+
+                //Make sure the collider is off so the player doesn't immedietly activates it.
+                trapPlacedThisTurn.GetComponent<BoxCollider2D>().enabled = false;
+
+                //Get trapScript
+                trapScript = trapPlacedThisTurn.GetComponent<Trap>();
+
+                //For turning collider on after player's turn.
+                aTrapWasPlaced = true;
+
+                //Makes sure you cant place two traps on top of eachother.
+                aTrapIsPlacedThisTurn = true;
 
                 //Take one from the inventory
                 trapsInInventory--;
 
+                //Update UI
                 _uiController.SetTrapsLeft(trapsInInventory);
-                Debug.Log("Traps Left: " + trapsInInventory);
+
+                //Update analytics data
+                analyticsController.WeaponUsed("Traps");
             }
         }
 		
@@ -175,6 +214,18 @@ namespace Completed
 		{
             //(Re)set timer
             countdownTimer = setupTimer;
+
+            if (aTrapWasPlaced)
+            {
+                aTrapIsPlacedThisTurn = false;
+                trapScript.PlayerMoved();
+
+                if(trapScript.TrapActivated() == true)
+                {
+                    //The trap is activated by this point and there is no need to check it again.
+                    aTrapWasPlaced = false;
+                }
+            }
 
             //Every time player moves, subtract from food points total.
             food--;
@@ -249,13 +300,14 @@ namespace Completed
         {
             _activeWeapon.PlayerAttacked();
             _uiController.SetAmmoText(_activeWeapon.AttacksLeft());
-
+            analyticsController.WeaponUsed(activeWeapon.name);
 
             if (_activeWeapon.AttacksLeft() == 0)
             {
                 _activeWeapon = null;
                 _uiController.SetActiveWeapon(" - ");
             }
+
         }
 
         // PlayerDidntMove is called when it is the player's turn and he hasn't moved yet.
@@ -266,7 +318,7 @@ namespace Completed
             //Update food text display to reflect current score.
             _uiController.SetFoodText(food);
 
-            //Since the player has moved and lost food points, check if the game has ended.
+            ////Since the player has moved and lost food points, check if the game has ended.
             CheckIfGameOver();
 
             //Set the playersTurn boolean of GameManager to false now that players turn is over.
@@ -274,38 +326,40 @@ namespace Completed
 
             //Resets the timer
             int i = GameManager.instance.getLevel;
-            switch (i)
+
+            if(i <= 3)//From start
             {
-                case 1:
-                    setupTimer = 7;
-                    break;
-                case 5:
-                    setupTimer = 5;
-                    break;
-                case 10:
-                    setupTimer = 3;
-                    break;
-                case 15:
-                    setupTimer = 1;
-                    break;
-                default:
-                    //Do Nothing
-                    break;
+                setupTimer = 7;
             }
+            else if (i >= 4 && i < 8)//From level 4
+            {
+                setupTimer = 5;
+            }
+            else if (i >= 8 && i < 12)//From level 8
+            {
+                setupTimer = 3;
+            }
+            else if (i >= 12)//From level 12
+            {
+                setupTimer = 1;
+            }
+
             countdownTimer = setupTimer;
+
+            analyticsController.timesTimerReachedZero++;
         }
 		
 		//OnTriggerEnter2D is sent when another object enters a trigger collider attached to this object (2D physics only).
 		private void OnTriggerEnter2D (Collider2D other)
 		{
 			//Check if the tag of the trigger collided with is Exit.
-			if(other.tag == "Exit")
+			if(other.tag == "Exit" && food != 0)
 			{
 				//Invoke the Restart function to start the next level with a delay of restartLevelDelay (default 1 second).
 				Invoke ("Restart", restartLevelDelay);
 				
 				//Disable the player object since level is over.
-				enabled = false;
+				//enabled = false;
 			}
 			
 			//Check if the tag of the trigger collided with is Food.
@@ -322,7 +376,9 @@ namespace Completed
 				
 				//Disable the food object the player collided with.
 				other.gameObject.SetActive (false);
-			}
+
+                analyticsController.foodFound += pointsPerFood;
+            }
 			
 			//Check if the tag of the trigger collided with is Soda.
 			else if(other.tag == "Soda")
@@ -338,9 +394,11 @@ namespace Completed
 				
 				//Disable the soda object the player collided with.
 				other.gameObject.SetActive (false);
-			}
 
-            else if (other.tag == "Trap")
+                analyticsController.foodFound += pointsPerSoda;
+            }
+
+            else if (other.tag == "Trap" && aTrapWasPlaced == false)
             {
                 LoseFood(stepInTrapPenalty);
                 GameObject loseHealthFx = Instantiate(GameManager.instance.loseHealthFx, transform.position, transform.rotation);
@@ -359,15 +417,30 @@ namespace Completed
         //Restart reloads the scene when called.
         private void Restart ()
 		{
-			//Load the last scene loaded, in this case Main, the only scene in the game. And we load it in "Single" mode so it replace the existing one
+            //Load the last scene loaded, in this case Main, the only scene in the game. And we load it in "Single" mode so it replace the existing one
             //and not load all the scene object in the current scene.
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
-		}
-		
-		
-		//LoseFood is called when an enemy attacks the player.
-		//It takes a parameter loss which specifies how many points to lose.
-		public void LoseFood (int loss)
+
+            Debug.Log("Restart");
+            if(food > 0)
+            {
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+            }
+            else if(food <= 0)
+            {
+                Destroy(GameManager.instance.gameObject);
+                Destroy(SoundManager.instance.gameObject);
+                Destroy(_uiController.gameObject);
+
+                //SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex, LoadSceneMode.Single);
+
+                SceneManager.LoadScene("Menu");
+            }
+        }
+
+
+        //LoseFood is called when an enemy attacks the player.
+        //It takes a parameter loss which specifies how many points to lose.
+        public void LoseFood (int loss)
 		{
 			//Set the trigger for the player animator to transition to the playerHit animation.
 			animator.SetTrigger ("playerHit");
@@ -395,6 +468,9 @@ namespace Completed
 			//Check if food point total is less than or equal to zero.
 			if (food <= 0) 
 			{
+                analyticsController.levelReached = GameManager.instance.getLevel;
+                analyticsController.StartAnalytics();
+
 				//Call the PlaySingle function of SoundManager and pass it the gameOverSound as the audio clip to play.
 				SoundManager.instance.PlaySingle (gameOverSound);
 				
@@ -413,12 +489,13 @@ namespace Completed
             if(_activeWeapon != null)
             {
                 damage = _activeWeapon.damage;
-                Debug.Log(_activeWeapon.damage);
+                _uiController.SetAmmoText(_activeWeapon.attacksLeft);
             }
             else
             {
                 damage = baseDamage;
             }
+            analyticsController.zombiesAttacked++;
             return damage;
         }
 
@@ -434,6 +511,7 @@ namespace Completed
                     _activeWeapon = new Shotgun();
                     weapon = "Shotgun";
                     _uiController.SetActiveWeapon(weapon);
+                    _uiController.SetAmmoText(_activeWeapon.attacksLeft);
                     break;
 
                 case 1:
@@ -446,6 +524,7 @@ namespace Completed
                     _activeWeapon = new MeleeWeapon();
                     weapon = "Melee Weapon";
                     _uiController.SetActiveWeapon(weapon);
+                    _uiController.SetAmmoText(_activeWeapon.attacksLeft);
                     break;
 
                 default:
@@ -454,6 +533,8 @@ namespace Completed
                     break;
             }
             Debug.Log("New weapon acquired: " + weapon);
+            analyticsController.weaponsCollected++;
+            analyticsController.collectedCrates++;
         }
     }
 }

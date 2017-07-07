@@ -2,18 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class WeaponController : MonoBehaviour {
-
+public class WeaponController : MonoBehaviour
+{
     Weapon[] weapons;
     Weapon _activeWeapon;
-
-	// Use this for initialization
-	void Start () {
-		
-	}
-	
-	// Update is called once per frame
-	void Update () {
-		
-	}
 }

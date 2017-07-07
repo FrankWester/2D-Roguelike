@@ -17,10 +17,12 @@ namespace Completed
 
         public int health = 3;
         public int id;
-		
-		
-		//Start overrides the virtual Start function of the base class.
-		protected override void Start ()
+
+        AnalyticsController analyticsController;
+
+
+        //Start overrides the virtual Start function of the base class.
+        protected override void Start ()
 		{
 			//Register this enemy with our instance of GameManager by adding it to a list of Enemy objects. 
 			//This allows the GameManager to issue movement commands.
@@ -30,16 +32,19 @@ namespace Completed
 			animator = GetComponent<Animator> ();
 			
 			//Find the Player GameObject using it's tag and store a reference to its transform component.
-			target = GameObject.FindGameObjectWithTag ("Player").transform;
+            if(GameObject.FindGameObjectWithTag("Player").transform != null)
+			    target = GameObject.FindGameObjectWithTag ("Player").transform;
 			
 			//Call the start function of our base class MovingObject.
 			base.Start ();
-		}
-		
-		
-		//Override the AttemptMove function of MovingObject to include functionality needed for Enemy to skip turns.
-		//See comments in MovingObject for more on how base AttemptMove function works.
-		protected override void AttemptMove <T> (int xDir, int yDir)
+
+            analyticsController = GameManager.instance.GetComponent<AnalyticsController>();
+        }
+
+
+        //Override the AttemptMove function of MovingObject to include functionality needed for Enemy to skip turns.
+        //See comments in MovingObject for more on how base AttemptMove function works.
+        protected override void AttemptMove <T> (int xDir, int yDir)
 		{
             if(_turnsTillMove == 0)
             {
@@ -92,7 +97,10 @@ namespace Completed
 			
 			//Call the RandomizeSfx function of SoundManager passing in the two audio clips to choose randomly between.
 			SoundManager.instance.RandomizeSfx (attackSound1, attackSound2);
-		}
+
+            analyticsController.timesPlayerGotAttacked++;
+
+        }
 
         private void OnTriggerEnter2D(Collider2D other)
         {
@@ -135,6 +143,7 @@ namespace Completed
 
             if (health <= 0)
             {
+                analyticsController.zombieKills++;
                 GameManager.instance.RemoveEnemyFromList(this);
                 Destroy(this.gameObject);
             }

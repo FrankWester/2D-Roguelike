@@ -113,16 +113,11 @@ namespace Completed
 				//Call the OnCantMove function and pass it hitComponent as a parameter.
 				OnCantMove (hitComponent);
 
-            if(hit.collider.tag == "Enemy")
+            //Do this when the player attacks an enemy.
+            if(hit.collider.tag == "Enemy" && this.gameObject.tag == "Player")
             {
                 hit.collider.gameObject.GetComponent<Enemy>().TakeDamage();
                 AttackEnemy(hitComponent);
-
-                ////Because the shotgun is a ranged weapon, the player is unable to also walk in the same turn as he shoots.
-                //if (hitComponent.gameObject.GetComponent<Player>().activeWeapon.name == "Shotgun")
-                //{
-                //    OnCantMove(hitComponent);
-                //}
             }
         }
 		

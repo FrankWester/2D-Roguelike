@@ -11,7 +11,8 @@ namespace Completed
 	{
 		public float levelStartDelay = 2f;						//Time to wait before starting level, in seconds.
 		public float turnDelay = 0.1f;							//Delay between each Player turn.
-		public int playerFoodPoints = 110;						//Starting value for Player food points.
+		public int playerFoodPoints = 120;						//Starting value for Player food points.
+        public int playerTrapsInInventoryAmount = 0;
 		public static GameManager instance = null;				//Static instance of GameManager which allows it to be accessed by any other script.
 		[HideInInspector] public bool playersTurn = true;		//Boolean to check if it's players turn, hidden in inspector but public.
 		public int getLevel { get { return level; } }
@@ -20,21 +21,29 @@ namespace Completed
 
         [SerializeField] GameObject _trap;
         public GameObject trap { get { return _trap; } }
+
         [SerializeField] GameObject _blood;
         public GameObject blood { get { return _blood; } }
+
         [SerializeField] GameObject _loseHealthFx;
         public GameObject loseHealthFx { get { return _loseHealthFx; } }
 
         private Text levelText;									//Text to display current level number.
 		private GameObject levelImage;							//Image to block out level as levels are being set up, background for levelText.
 		private BoardManager boardScript;						//Store a reference to our BoardManager which will set up the level.
-		private int level = 0;									//Current level number, expressed in game as "Day 1".
+		private int level = 1;									//Current level number, expressed in game as "Day 1".
 		private List<Enemy> enemies;							//List of all Enemy units, used to issue them move commands.
 		private bool enemiesMoving;								//Boolean to check if enemies are moving.
 		private bool doingSetup = true;                         //Boolean to check if we're setting up board, prevent Player from moving during setup.		
-		
-		//Awake is always called before any Start functions
-		void Awake()
+
+        public Player player { get; private set; }
+        AnalyticsController analyticsController;
+        bool _gameFinished = false;
+
+        int trapsInInventory;
+
+        //Awake is always called before any Start functions
+        void Awake()
 		{
             //Check if instance already exists
             if (instance == null)
@@ -62,7 +71,10 @@ namespace Completed
 			
 			//Call the InitGame function to initialize the first level 
 			InitGame();
-		}
+
+
+            analyticsController = GetComponent<AnalyticsController>();
+        }
 
         //this is called only once, and the paramter tell it to be called only after the scene was loaded
         //(otherwise, our Scene Load callback would be called the very first load, and we don't want that)
@@ -84,20 +96,11 @@ namespace Completed
 		//Initializes the game for each level.
 		void InitGame()
 		{
-			//While doingSetup is true the player can't move, prevent player from moving while title card is up.
-			doingSetup = true;
-			
-			//Get a reference to our image LevelImage by finding it by name.
-			levelImage = uiController.levelImage;
-			
-			//Get a reference to our text LevelText's text component by finding it by name and calling GetComponent.
-			levelText = uiController.levelText;
-			
-			//Set the text of levelText to the string "Day" and append the current level number.
-			levelText.text = "Day " + level;
+            //if (levelText != null)
+                GetUiObjects();
 
-            //Set levelImage to active blocking player's view of the game board during setup.
-            uiController.levelImage.SetActive(true);
+            //While doingSetup is true the player can't move, prevent player from moving while title card is up.
+            doingSetup = true;
 			
 			//Call the HideLevelImage function with a delay in seconds of levelStartDelay.
 			Invoke("HideLevelImage", levelStartDelay);
@@ -108,6 +111,21 @@ namespace Completed
 			//Call the SetupScene function of the BoardManager script, pass it current level number.
 			boardScript.SetupScene(level);		
 		}
+
+        void GetUiObjects()
+        {
+            //Get a reference to our image LevelImage by finding it by name.
+            levelImage = uiController.levelImage;
+
+            //Get a reference to our text LevelText's text component by finding it by name and calling GetComponent.
+            levelText = uiController.levelText;
+
+            //Set the text of levelText to the string "Day" and append the current level number.
+            levelText.text = "Day " + level;
+
+            //Set levelImage to active blocking player's view of the game board during setup.
+            uiController.levelImage.SetActive(true);
+        }
 		
 		
 		//Hides black image used between levels
@@ -123,8 +141,8 @@ namespace Completed
 		//Update is called every frame.
 		void Update()
 		{
-			//Check that playersTurn or enemiesMoving or doingSetup are not currently true.
-			if(playersTurn || enemiesMoving || doingSetup)
+            //Check that playersTurn or enemiesMoving or doingSetup are not currently true.
+            if (playersTurn || enemiesMoving || doingSetup)
 				
 				//If any of these are true, return and do not start MoveEnemies.
 				return;
@@ -138,6 +156,9 @@ namespace Completed
 		{
 			//Add Enemy to List enemies.
 			enemies.Add(script);
+
+            //Update Analytics
+            analyticsController.totalZombiesSpawned++;
 		}
 
         //Call this to remove the passed in Enemy to the List of Enemy objects.
@@ -155,13 +176,13 @@ namespace Completed
 			
 			//Enable black background image gameObject.
 			levelImage.SetActive(true);
-			
+
 			//Disable this GameManager.
 			enabled = false;
-		}
-		
-		//Coroutine to move enemies in sequence.
-		IEnumerator MoveEnemies()
+        }
+
+        //Coroutine to move enemies in sequence.
+        IEnumerator MoveEnemies()
 		{
 			//While enemiesMoving is true player is unable to move.
 			enemiesMoving = true;
@@ -190,7 +211,7 @@ namespace Completed
 			
 			//Enemies are done moving, set enemiesMoving to false.
 			enemiesMoving = false;
-		}
+		}      
 	}
 }
 

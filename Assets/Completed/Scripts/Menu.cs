@@ -10,14 +10,21 @@ public class Menu : MonoBehaviour {
     {
 		//Play Sound
 	}
-	
-	// Update is called once per frame
-	void Update ()
+
+    IEnumerator WaitForSeconds()
+    {
+        yield return new WaitForSeconds(1);
+        SceneManager.LoadScene("Main");
+    }
+
+    // Update is called once per frame
+    void Update ()
     {
 		if(Input.anyKeyDown)
         {
             //Load Next Scene
-            SceneManager.LoadScene("Main");
+            WaitForSeconds();
+
         }
     }
 }

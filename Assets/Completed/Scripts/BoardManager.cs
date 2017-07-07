@@ -37,6 +37,8 @@ namespace Completed
 		public GameObject[] enemyTiles;									//Array of enemy prefabs.
 		public GameObject[] outerWallTiles;                             //Array of outer tile prefabs.
 
+        AnalyticsController _analyticsController;
+
 
         //public Count weaponCount = new Count(0, 1);						//Lower and upper limit for our random number of food items per level.
         public GameObject[] weaponTiles;                             //Array of outer tile prefabs.
@@ -149,7 +151,7 @@ namespace Completed
 			LayoutObjectAtRandom (foodTiles, foodCount.minimum, foodCount.maximum);
 
             //Spawn weapons
-            WeaponRandomizer();
+            CrateRandomizer();
 
             //Determine number of enemies based on current level number, based on a logarithmic progression
             int enemyCount = (int)Mathf.Log(level, 2f);
@@ -162,14 +164,23 @@ namespace Completed
 		}
 
         // There's a 33% chance that a weapon crate will be available in a level.
-        void WeaponRandomizer()
+        void CrateRandomizer()
         {
             int x = Random.Range(0, 3);
 
             if (x == 2)
             {
                 LayoutObjectAtRandom(weaponTiles, 1, 1);
-                Debug.Log("Weapon crate spawned!");
+                if (_analyticsController)
+                {
+                    _analyticsController.spawnedCrates++;
+                }
+                else
+                {
+                    _analyticsController = GameManager.instance.GetComponent<AnalyticsController>();
+                    _analyticsController.spawnedCrates++;
+
+                }
             }
         }
     }

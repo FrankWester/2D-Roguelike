@@ -118,6 +118,6 @@ public class UiController : MonoBehaviour {
 
     public void SetTrapsLeft(int trapsLeft)
     {
-        _activeWeapon.text = trapsLeft.ToString();
+        _trapsLeft.text = trapsLeft.ToString();
     }
 }
